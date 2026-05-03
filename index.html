@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RENDERit · Offline PBR Visualizer V1.0.5</title>
+  <meta name="description" content="RENDERit is an offline-capable browser visualization pool for arranging imported 3D models, PBR-style materials, physical lights and HDRI-style environments.">
+  <link rel="icon" type="image/png" href="./assets/img/favicon.png">
+  <link rel="apple-touch-icon" href="./assets/img/logo.png">
+  <link href="./assets/vendor/bootstrap/css/bootstrap.min.css?v=5.3.3-local" rel="stylesheet">
+  <link href="./assets/css/renderit_main.css?v=1.0.5" rel="stylesheet">
+</head>
+<body>
+  <main id="app-shell">
+    <header class="app-topbar glass-panel">
+      <div class="brand-block" aria-label="RENDERit">
+        <img class="brand-logo" src="./assets/img/logo.png" alt="RENDERit Logo">
+        <h1>RENDERit</h1>
+      </div>
+
+      <div class="transform-toolbar glass-panel-soft" aria-label="Object transform tools">
+        <button class="transform-mode active" data-transform-mode="select" type="button" title="Select object">↖</button>
+        <button class="transform-mode" data-transform-mode="move" type="button" title="Move selected object">↔</button>
+        <button class="transform-mode" data-transform-mode="rotate" type="button" title="Rotate selected object">⟳</button>
+        <button class="transform-mode" data-transform-mode="scale" type="button" title="Scale selected object">⤢</button>
+        <span class="toolbar-divider"></span>
+        <button class="nudge-button" data-nudge="x:-0.1" type="button" title="Move X negative">X−</button>
+        <button class="nudge-button" data-nudge="x:0.1" type="button" title="Move X positive">X+</button>
+        <button class="nudge-button" data-nudge="y:0.1" type="button" title="Move Y positive">Y+</button>
+        <button class="nudge-button" data-nudge="z:-0.1" type="button" title="Move Z negative">Z−</button>
+        <button class="nudge-button" data-nudge="z:0.1" type="button" title="Move Z positive">Z+</button>
+      </div>
+
+      <div class="top-actions" aria-label="Primary actions">
+        <button id="saveProjectBtn" class="btn btn-sm btn-neon-outline" type="button">Save Project</button>
+        <label class="btn btn-sm btn-dark-glass mb-0">
+          Load Project
+          <input id="projectInput" type="file" accept=".json,.renderit.json,application/json" hidden>
+        </label>
+        <label class="btn btn-sm btn-neon-outline mb-0">
+          Import Model
+          <input id="modelInput" type="file" accept=".obj,.stl" hidden>
+        </label>
+        <button id="loadSampleBtn" class="btn btn-sm btn-neon" type="button">Load Sample</button>
+        <button id="addLightBtn" class="btn btn-sm btn-dark-glass" type="button">Add Light</button>
+        <button id="renderExportBtn" class="btn btn-sm btn-dark-glass" type="button">Render Export</button>
+        <button id="controlsBtn" class="info-pill control-pill" type="button" title="Controls" aria-label="Open controls overview">⌘</button>
+        <button id="docsBtn" class="info-pill" type="button" title="Documentation" aria-label="Open documentation">i</button>
+        <button id="notesBtn" class="info-pill notes-pill" type="button" title="Notes" aria-label="Open release notes">✎</button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside class="library-panel glass-panel">
+        <div class="panel-scroll">
+          <div class="panel-section">
+            <div class="section-row tight-row">
+              <span class="section-label mb-0">Library</span>
+              <div class="mini-actions">
+                <button id="newMaterialBtn" class="icon-button" type="button" title="Create material">＋</button>
+                <button id="editMaterialBtn" class="icon-button" type="button" title="Edit selected material">✎</button>
+              </div>
+            </div>
+            <div id="materialGrid" class="material-grid" aria-label="Material library"></div>
+            <div class="drop-zone mt-2" id="materialDropHint">Drag a material onto the viewport or select an object and click a material.</div>
+          </div>
+
+          <div class="panel-section">
+            <span class="section-label">PBR Manager</span>
+            <div class="tool-stack compact-stack">
+              <button id="pbrMaterialBtn" class="tool-button tool-with-icon" type="button"><span class="tool-icon">◐</span><span>Create PBR Material</span></button>
+              <button id="exportMaterialsBtn" class="tool-button tool-with-icon" type="button"><span class="tool-icon">⇩</span><span>Export Material Library</span></button>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-row tight-row">
+              <span class="section-label mb-0">Environments</span>
+              <div class="mini-actions">
+                <button id="newEnvironmentBtn" class="icon-button" type="button" title="Create environment">＋</button>
+                <button id="editEnvironmentBtn" class="icon-button" type="button" title="Edit environment">✎</button>
+              </div>
+            </div>
+            <div id="environmentList" class="tool-stack environment-stack"></div>
+            <label class="btn btn-sm btn-dark-glass w-100 mt-2 mb-0 icon-label">
+              <span>☾</span><span>Load Local HDR / EXR</span>
+              <input id="hdriInput" type="file" accept=".hdr,.exr,image/*" hidden>
+            </label>
+            <button id="exportEnvironmentsBtn" class="btn btn-sm btn-dark-glass w-100 mt-2 icon-label" type="button"><span>⇩</span><span>Export Environments</span></button>
+          </div>
+
+          <div class="panel-section">
+            <span class="section-label">Model Presets</span>
+            <div id="presetGrid" class="preset-grid" aria-label="Primitive model presets">
+              <button class="preset-card" data-preset="cube" type="button" title="Cube"><span class="preset-icon">□</span><span>Cube</span></button>
+              <button class="preset-card" data-preset="sphere" type="button" title="Sphere"><span class="preset-icon">○</span><span>Sphere</span></button>
+              <button class="preset-card" data-preset="cylinder" type="button" title="Cylinder"><span class="preset-icon">▯</span><span>Cylinder</span></button>
+              <button class="preset-card" data-preset="cone" type="button" title="Cone"><span class="preset-icon">△</span><span>Cone</span></button>
+              <button class="preset-card" data-preset="torus" type="button" title="Torus"><span class="preset-icon">◎</span><span>Torus</span></button>
+              <button class="preset-card" data-preset="plane" type="button" title="Plane"><span class="preset-icon">▭</span><span>Plane</span></button>
+              <button class="preset-card" data-preset="stack" type="button" title="Product stack"><span class="preset-icon">S4</span><span>Stack</span></button>
+              <button class="preset-card" data-preset="display" type="button" title="Display scene"><span class="preset-icon">▣</span><span>Display</span></button>
+              <button class="preset-card" data-preset="pyramid" type="button" title="Pyramid"><span class="preset-icon">◇</span><span>Pyramid</span></button>
+              <button class="preset-card" data-preset="capsule" type="button" title="Capsule"><span class="preset-icon">⬭</span><span>Capsule</span></button>
+              <button class="preset-card" data-preset="plinth" type="button" title="Studio Plinth"><span class="preset-icon">▱</span><span>Plinth</span></button>
+              <button class="preset-card" data-preset="hero-kit" type="button" title="Hero Kit"><span class="preset-icon">H3</span><span>Hero Kit</span></button>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <span class="section-label">Render Tools</span>
+            <div class="tool-stack compact-stack">
+              <button id="openGroundStudioBtn" class="tool-button tool-with-icon" type="button"><span class="tool-icon">▤</span><span>Ground Studio</span></button>
+              <button id="centerSelectedBtn" class="tool-button tool-with-icon" type="button"><span class="tool-icon">⌖</span><span>Center Selection</span></button>
+              <button id="fitAllBtn" class="tool-button tool-with-icon" type="button"><span class="tool-icon">⛶</span><span>Frame All Objects</span></button>
+              <button id="exportSceneManifestBtn" class="tool-button tool-with-icon" type="button"><span class="tool-icon">☷</span><span>Export Scene Manifest</span></button>
+            </div>
+          </div>
+
+          <div class="panel-section history-section">
+            <div class="section-row tight-row">
+              <span class="section-label mb-0">History</span>
+              <div class="history-actions">
+                <button id="undoBtn" class="icon-button history-icon" type="button" title="Undo / Ctrl+Z">↶</button>
+                <button id="redoBtn" class="icon-button history-icon" type="button" title="Redo / Ctrl+Y">↷</button>
+              </div>
+            </div>
+            <div id="historyList" class="history-list" aria-label="Recent action history"></div>
+          </div>
+
+          <div class="panel-section">
+            <span class="section-label">Status</span>
+            <div id="statusText" class="status-box">Ready. Load a sample, import OBJ/STL, or drag a material onto the stage.</div>
+            <div class="stats-grid mt-2">
+              <div><strong id="statObjects">0</strong><span>Objects</span></div>
+              <div><strong id="statTris">0</strong><span>Triangles</span></div>
+              <div><strong id="statLights">0</strong><span>Lights</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <span class="version-pill">V1.0.5</span>
+          <a class="github-pill" href="https://github.com/complicatiion/RENDERit" target="_blank" rel="noopener noreferrer">GitHub Repo</a>
+        </div>
+      </aside>
+
+      <section class="stage-shell">
+        <div class="viewport-card glass-panel">
+          <div class="viewport-label">
+            <span>Editor View</span>
+            <small>&nbsp;</small>
+          </div>
+          <div id="viewportDropZone" class="viewport-wrap">
+            <canvas id="renderViewport" class="viewport-host" aria-label="RENDERit main viewport"></canvas>
+            <svg id="viewportHud" class="viewport-hud" aria-hidden="true"></svg>
+            <div class="view-snap-grid" aria-label="Camera view shortcuts">
+              <button data-camera-view="top" type="button">Top</button>
+              <button data-camera-view="bottom" type="button">Bottom</button>
+              <button data-camera-view="left" type="button">Left</button>
+              <button data-camera-view="right" type="button">Right</button>
+              <button data-camera-view="front" type="button">Front</button>
+              <button data-camera-view="rear" type="button">Rear</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-bar glass-panel">
+          <div class="bottom-actions" aria-label="Bottom actions">
+            <button id="resetCameraBtn" class="btn btn-sm btn-dark-glass" type="button">Reset Camera</button>
+            <button id="frameObjectBtn" class="btn btn-sm btn-dark-glass" type="button">Frame Selected</button>
+            <button id="duplicateBtn" class="btn btn-sm btn-dark-glass" type="button">Duplicate</button>
+            <button id="deleteBtn" class="btn btn-sm btn-dark-glass" type="button">Delete</button>
+            <button id="clearSceneBtn" class="btn btn-sm btn-neon-outline" type="button">Clear Scene</button>
+          </div>
+          <div class="bottom-pipeline" aria-label="Viewport pipeline status">
+            <span class="chip">Renderer <b id="rendererBadge">WebGL2</b></span>
+            <span class="chip">Tone Mapping <b>ACES</b></span>
+            <span class="chip">Pipeline <b>PBR Viewport</b></span>
+            <span class="chip">Selected <b id="selectedBadge">None</b></span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="scene-panel glass-panel">
+        <div class="panel-scroll right-scroll">
+          <nav class="tabs icon-tabs" aria-label="Project and scene tabs">
+            <button class="tab-button active" data-tab="scene" type="button" title="Scene"><span>☷</span><small>Scene</small></button>
+            <button class="tab-button" data-tab="material" type="button" title="Material"><span>◐</span><small>Material</small></button>
+            <button class="tab-button" data-tab="environment" type="button" title="Environment"><span>☾</span><small>Env</small></button>
+            <button class="tab-button" data-tab="camera" type="button" title="Camera"><span>◉</span><small>Camera</small></button>
+          </nav>
+
+          <section id="tab-scene" class="tab-pane active">
+            <div class="panel-section">
+              <div class="section-row"><span class="section-label mb-0">Object Manager</span><button id="refreshSceneBtn" class="icon-button" type="button" title="Refresh scene">↻</button></div>
+              <div id="hierarchyList" class="hierarchy-list"></div>
+            </div>
+            <div class="panel-section">
+              <span class="section-label">Object Transform</span>
+              <label class="form-label mini-label" for="selectedObjectNameInput">Object Name</label>
+              <input id="selectedObjectNameInput" class="form-control form-control-sm glass-input" type="text" value="No selection">
+              <div class="axis-grid mt-2">
+                <label class="field-stack mini-field">Pos X<input id="posXInput" class="form-control form-control-sm glass-input" type="number" step="0.05"></label>
+                <label class="field-stack mini-field">Pos Y<input id="posYInput" class="form-control form-control-sm glass-input" type="number" step="0.05"></label>
+                <label class="field-stack mini-field">Pos Z<input id="posZInput" class="form-control form-control-sm glass-input" type="number" step="0.05"></label>
+                <label class="field-stack mini-field">Rot X<input id="rotXInput" class="form-control form-control-sm glass-input" type="number" step="1"></label>
+                <label class="field-stack mini-field">Rot Y<input id="rotYInput" class="form-control form-control-sm glass-input" type="number" step="1"></label>
+                <label class="field-stack mini-field">Rot Z<input id="rotZInput" class="form-control form-control-sm glass-input" type="number" step="1"></label>
+                <label class="field-stack mini-field">Scale X<input id="scaleXInput" class="form-control form-control-sm glass-input" type="number" step="0.05" min="0.01"></label>
+                <label class="field-stack mini-field">Scale Y<input id="scaleYInput" class="form-control form-control-sm glass-input" type="number" step="0.05" min="0.01"></label>
+                <label class="field-stack mini-field">Scale Z<input id="scaleZInput" class="form-control form-control-sm glass-input" type="number" step="0.05" min="0.01"></label>
+              </div>
+              <div class="two-button-row mt-2">
+                <button id="applyTransformBtn" class="btn btn-sm btn-neon" type="button">Apply Transform</button>
+                <button id="resetTransformBtn" class="btn btn-sm btn-dark-glass" type="button">Reset</button>
+              </div>
+            </div>
+            <div class="panel-section">
+              <span class="section-label">Physical Lights</span>
+              <div id="lightList" class="tool-stack"></div>
+              <div class="range-row mt-2">
+                <input id="exposureInput" type="range" min="0.35" max="2.5" value="1.0" step="0.01">
+                <span id="exposureValue" class="range-value">1.00</span>
+              </div>
+              <label class="mini-label" for="exposureInput">Viewport exposure</label>
+            </div>
+            <div class="panel-section">
+              <span class="section-label">Ground Plane</span>
+              <div class="form-check form-switch mt-1">
+                <input id="groundToggle" class="form-check-input" type="checkbox" checked>
+                <label class="form-check-label" for="groundToggle">Selectable reflective ground</label>
+              </div>
+              <div class="range-row mt-2">
+                <input id="floorReflectionInput" type="range" min="0" max="1" step="0.01" value="0.35">
+                <span id="floorReflectionValue" class="range-value">0.35</span>
+              </div>
+              <label class="mini-label" for="floorReflectionInput">Ground reflection</label>
+              <button id="selectGroundBtn" class="btn btn-sm btn-dark-glass w-100 mt-2" type="button">Select Ground Plane</button>
+              <button id="openGroundStudioBtnRight" class="btn btn-sm btn-neon-outline w-100 mt-2" type="button">Open Ground Studio</button>
+            </div>
+          </section>
+
+          <section id="tab-material" class="tab-pane">
+            <div class="panel-section">
+              <span class="section-label">Selected Shader</span>
+              <label class="form-label mini-label" for="matNameInput">Name</label>
+              <input id="matNameInput" class="form-control form-control-sm glass-input" type="text" value="No selection" readonly>
+              <label class="form-label mini-label mt-2" for="albedoInput">Albedo</label>
+              <input id="albedoInput" class="form-control form-control-sm glass-input color-input" type="color" value="#d9d9d9">
+              <label class="form-label mini-label mt-2">Roughness</label><div class="range-row"><input id="roughnessInput" type="range" min="0.03" max="1" step="0.01" value="0.35"><span id="roughnessValue" class="range-value">0.35</span></div>
+              <label class="form-label mini-label mt-2">Metalness</label><div class="range-row"><input id="metalnessInput" type="range" min="0" max="1" step="0.01" value="0.0"><span id="metalnessValue" class="range-value">0.00</span></div>
+              <label class="form-label mini-label mt-2">Clearcoat</label><div class="range-row"><input id="clearcoatInput" type="range" min="0" max="1" step="0.01" value="0.0"><span id="clearcoatValue" class="range-value">0.00</span></div>
+              <label class="form-label mini-label mt-2">Transmission</label><div class="range-row"><input id="transmissionInput" type="range" min="0" max="1" step="0.01" value="0.0"><span id="transmissionValue" class="range-value">0.00</span></div>
+              <button id="applyMaterialBtn" class="btn btn-neon w-100 mt-2" type="button">Apply Changes</button>
+              <button id="openMaterialEditorBtn" class="btn btn-dark-glass w-100 mt-2" type="button">Open Material Studio</button>
+            </div>
+          </section>
+
+          <section id="tab-environment" class="tab-pane">
+            <div class="panel-section">
+              <span class="section-label">Environment Controls</span>
+              <label class="form-label mini-label">Background Strength</label><div class="range-row"><input id="envStrengthInput" type="range" min="0" max="2" step="0.01" value="0.75"><span id="envStrengthValue" class="range-value">0.75</span></div>
+              <div class="axis-grid mt-2">
+                <label class="field-stack mini-field">Top<input id="envTopQuick" class="form-control form-control-sm glass-input color-input" type="color" value="#bfc2d1"></label>
+                <label class="field-stack mini-field">Horizon<input id="envHorizonQuick" class="form-control form-control-sm glass-input color-input" type="color" value="#171820"></label>
+                <label class="field-stack mini-field">Ground<input id="envGroundQuick" class="form-control form-control-sm glass-input color-input" type="color" value="#020204"></label>
+              </div>
+              <button id="applyEnvironmentQuickBtn" class="btn btn-sm btn-dark-glass w-100 mt-2" type="button">Apply Quick Colors</button>
+              <div class="form-check form-switch mt-2">
+                <input id="gridToggle" class="form-check-input" type="checkbox" checked>
+                <label class="form-check-label" for="gridToggle">Subtle stage grid</label>
+              </div>
+              <button id="openEnvironmentStudioBtn" class="btn btn-neon w-100 mt-3" type="button">Open Environment Studio</button>
+            </div>
+          </section>
+
+          <section id="tab-camera" class="tab-pane">
+            <div class="panel-section">
+              <span class="section-label">Camera Manager</span>
+              <div class="axis-grid">
+                <label class="field-stack mini-field">FOV<input id="cameraFovInput" class="form-control form-control-sm glass-input" type="number" min="20" max="90" step="1" value="45"></label>
+                <label class="field-stack mini-field">Distance<input id="cameraDistanceInput" class="form-control form-control-sm glass-input" type="number" min="0.8" max="60" step="0.1" value="4.6"></label>
+                <label class="field-stack mini-field">Pitch<input id="cameraPitchInput" class="form-control form-control-sm glass-input" type="number" min="-80" max="80" step="1" value="-19"></label>
+                <label class="field-stack mini-field">Yaw<input id="cameraYawInput" class="form-control form-control-sm glass-input" type="number" min="-360" max="360" step="1" value="-38"></label>
+              </div>
+              <div class="two-button-row mt-2">
+                <button id="applyCameraBtn" class="btn btn-sm btn-neon" type="button">Apply Camera</button>
+                <button id="resetCameraPanelBtn" class="btn btn-sm btn-dark-glass" type="button">Reset</button>
+              </div>
+            </div>
+            <div class="panel-section">
+              <span class="section-label">View Presets</span>
+              <div class="view-preset-grid">
+                <button class="tool-button" data-camera-view="front" type="button">Front</button>
+                <button class="tool-button" data-camera-view="rear" type="button">Rear</button>
+                <button class="tool-button" data-camera-view="left" type="button">Left</button>
+                <button class="tool-button" data-camera-view="right" type="button">Right</button>
+                <button class="tool-button" data-camera-view="top" type="button">Top</button>
+                <button class="tool-button" data-camera-view="bottom" type="button">Bottom</button>
+                <button class="tool-button" data-camera-view="iso" type="button">ISO</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <div id="infoOverlay" class="modal-overlay" hidden aria-hidden="true">
+    <section class="docs-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="docs-header">
+        <div>
+          <span id="modalKicker" class="section-label">Internal Documentation</span>
+          <h2 id="modalTitle">RENDERit Documentation</h2>
+        </div>
+        <button id="modalCloseBtn" class="icon-button" type="button" aria-label="Close dialog">×</button>
+      </header>
+      <article id="modalContent" class="docs-content"></article>
+    </section>
+  </div>
+
+  <div id="exportOverlay" class="modal-overlay" hidden aria-hidden="true">
+    <section class="settings-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+      <header class="docs-header">
+        <div><span class="section-label">Render Output</span><h2 id="exportTitle">Export Render</h2></div>
+        <button id="exportCloseBtn" class="icon-button" type="button" aria-label="Close render export">×</button>
+      </header>
+      <div class="settings-content">
+        <div class="settings-grid">
+          <label class="field-stack">Preset
+            <select id="exportPreset" class="form-select form-select-sm glass-input">
+              <option value="viewport">Current viewport</option>
+              <option value="1920x1080" selected>1920 × 1080</option>
+              <option value="2560x1440">2560 × 1440</option>
+              <option value="3840x2160">3840 × 2160</option>
+              <option value="1080x1080">1080 × 1080</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label class="field-stack">Aspect
+            <select id="exportAspect" class="form-select form-select-sm glass-input">
+              <option value="free">Free</option>
+              <option value="16:9" selected>16:9</option>
+              <option value="1:1">1:1</option>
+              <option value="4:5">4:5</option>
+              <option value="3:2">3:2</option>
+            </select>
+          </label>
+          <label class="field-stack">Width
+            <input id="exportWidth" class="form-control form-control-sm glass-input" type="number" min="320" max="8192" value="1920">
+          </label>
+          <label class="field-stack">Height
+            <input id="exportHeight" class="form-control form-control-sm glass-input" type="number" min="240" max="8192" value="1080">
+          </label>
+          <label class="field-stack">Format
+            <select id="exportFormat" class="form-select form-select-sm glass-input">
+              <option value="image/png" selected>PNG</option>
+              <option value="image/jpeg">JPEG</option>
+            </select>
+          </label>
+          <label class="field-stack">JPEG Quality
+            <input id="exportQuality" class="form-control form-control-sm glass-input" type="number" min="0.5" max="1" step="0.05" value="0.92">
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button id="runRenderExportBtn" class="btn btn-neon" type="button">Render Image</button>
+          <button id="quickScreenshotBtn" class="btn btn-dark-glass" type="button">Quick Viewport PNG</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="materialOverlay" class="modal-overlay" hidden aria-hidden="true">
+    <section class="settings-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="materialTitle">
+      <header class="docs-header">
+        <div><span class="section-label">Material Studio</span><h2 id="materialTitle">PBR Material</h2></div>
+        <button id="materialCloseBtn" class="icon-button" type="button" aria-label="Close material studio">×</button>
+      </header>
+      <div class="settings-content">
+        <input id="materialEditId" type="hidden">
+        <div class="settings-grid">
+          <label class="field-stack span-2">Material Name
+            <input id="materialNameEditor" class="form-control form-control-sm glass-input" type="text" value="Custom Material">
+          </label>
+          <label class="field-stack">Albedo
+            <input id="materialColorEditor" class="form-control form-control-sm glass-input color-input" type="color" value="#d9d9d9">
+          </label>
+          <label class="field-stack">Emission
+            <input id="materialEmissionEditor" class="form-control form-control-sm glass-input" type="number" min="0" max="1" step="0.01" value="0.00">
+          </label>
+          <label class="field-stack">Roughness
+            <input id="materialRoughnessEditor" class="form-control form-control-sm glass-input" type="number" min="0.03" max="1" step="0.01" value="0.35">
+          </label>
+          <label class="field-stack">Metalness
+            <input id="materialMetalnessEditor" class="form-control form-control-sm glass-input" type="number" min="0" max="1" step="0.01" value="0.00">
+          </label>
+          <label class="field-stack">Clearcoat
+            <input id="materialClearcoatEditor" class="form-control form-control-sm glass-input" type="number" min="0" max="1" step="0.01" value="0.00">
+          </label>
+          <label class="field-stack">Transmission
+            <input id="materialTransmissionEditor" class="form-control form-control-sm glass-input" type="number" min="0" max="1" step="0.01" value="0.00">
+          </label>
+        </div>
+        <div class="pbr-channel-grid mt-3">
+          <label class="texture-slot">Albedo Map<input id="mapAlbedoInput" type="file" accept="image/*"></label>
+          <label class="texture-slot">Normal Map<input id="mapNormalInput" type="file" accept="image/*"></label>
+          <label class="texture-slot">Roughness Map<input id="mapRoughnessInput" type="file" accept="image/*"></label>
+          <label class="texture-slot">Metalness Map<input id="mapMetalnessInput" type="file" accept="image/*"></label>
+          <label class="texture-slot">Emissive Map<input id="mapEmissiveInput" type="file" accept="image/*"></label>
+        </div>
+        <div id="textureSummary" class="drop-zone mt-3">No texture channels registered.</div>
+        <div class="modal-actions">
+          <button id="saveMaterialEditorBtn" class="btn btn-neon" type="button">Save Material</button>
+          <button id="deleteMaterialEditorBtn" class="btn btn-neon-outline" type="button">Delete Material</button>
+          <button id="applyEditorMaterialBtn" class="btn btn-dark-glass" type="button">Apply to Selection</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="environmentOverlay" class="modal-overlay" hidden aria-hidden="true">
+    <section class="settings-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="environmentTitle">
+      <header class="docs-header">
+        <div><span class="section-label">Environment Studio</span><h2 id="environmentTitle">HDRI-Style Environment</h2></div>
+        <button id="environmentCloseBtn" class="icon-button" type="button" aria-label="Close environment studio">×</button>
+      </header>
+      <div class="settings-content">
+        <input id="environmentEditId" type="hidden">
+        <div class="settings-grid">
+          <label class="field-stack span-2">Environment Name
+            <input id="environmentNameEditor" class="form-control form-control-sm glass-input" type="text" value="Custom Studio">
+          </label>
+          <label class="field-stack span-2">Description
+            <input id="environmentSubtitleEditor" class="form-control form-control-sm glass-input" type="text" value="custom offline environment">
+          </label>
+          <label class="field-stack">Top Color
+            <input id="environmentTopEditor" class="form-control form-control-sm glass-input color-input" type="color" value="#cfd2dd">
+          </label>
+          <label class="field-stack">Horizon Color
+            <input id="environmentHorizonEditor" class="form-control form-control-sm glass-input color-input" type="color" value="#171820">
+          </label>
+          <label class="field-stack">Ground Color
+            <input id="environmentGroundEditor" class="form-control form-control-sm glass-input color-input" type="color" value="#020204">
+          </label>
+          <label class="field-stack">Strength
+            <input id="environmentStrengthEditor" class="form-control form-control-sm glass-input" type="number" min="0" max="2" step="0.01" value="0.75">
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button id="saveEnvironmentEditorBtn" class="btn btn-neon" type="button">Save Environment</button>
+          <button id="deleteEnvironmentEditorBtn" class="btn btn-neon-outline" type="button">Delete Environment</button>
+          <button id="applyEnvironmentEditorBtn" class="btn btn-dark-glass" type="button">Apply Environment</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="groundOverlay" class="modal-overlay" hidden aria-hidden="true">
+    <section class="settings-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="groundTitle">
+      <header class="docs-header">
+        <div><span class="section-label">Ground Studio</span><h2 id="groundTitle">Ground Plane Material</h2></div>
+        <button id="groundCloseBtn" class="icon-button" type="button" aria-label="Close ground studio">×</button>
+      </header>
+      <div class="settings-content">
+        <div class="settings-grid">
+          <label class="field-stack">Ground Color
+            <input id="groundColorEditor" class="form-control form-control-sm glass-input color-input" type="color" value="#111217">
+          </label>
+          <label class="field-stack">Texture Repeat
+            <input id="groundRepeatEditor" class="form-control form-control-sm glass-input" type="number" min="1" max="64" step="1" value="8">
+          </label>
+          <label class="field-stack">Roughness
+            <input id="groundRoughnessEditor" class="form-control form-control-sm glass-input" type="number" min="0.03" max="1" step="0.01" value="0.48">
+          </label>
+          <label class="field-stack">Metalness
+            <input id="groundMetalnessEditor" class="form-control form-control-sm glass-input" type="number" min="0" max="1" step="0.01" value="0.12">
+          </label>
+          <label class="field-stack span-2">Ground Texture
+            <input id="groundTextureInput" class="form-control form-control-sm glass-input" type="file" accept="image/*">
+          </label>
+        </div>
+        <div id="groundTextureSummary" class="drop-zone mt-3">No ground texture loaded.</div>
+        <div class="modal-actions">
+          <button id="applyGroundEditorBtn" class="btn btn-neon" type="button">Apply Ground</button>
+          <button id="selectGroundEditorBtn" class="btn btn-dark-glass" type="button">Select Ground Plane</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="./assets/vendor/bootstrap/js/bootstrap.bundle.min.js?v=5.3.3-local" defer></script>
+  <script src="./assets/js/material_manager.js?v=1.0.5" defer></script>
+  <script src="./assets/js/render_core.js?v=1.0.5" defer></script>
+  <script src="./assets/js/ui_tabs.js?v=1.0.5" defer></script>
+  <script src="./assets/js/app.js?v=1.0.5" defer></script>
+</body>
+</html>
